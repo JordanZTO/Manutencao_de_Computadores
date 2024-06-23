@@ -1,0 +1,123 @@
+#include <DHT.h>
+#include <LiquidCrystal.h>
+
+// Inicializa a biblioteca LCD com os pinos correspondentes
+LiquidCrystal LCD(12, 11, 5, 4, 3, 2);
+
+#define DHTPIN A0     // Pino onde será conectado o sensor DHT11 (pino analógico A0)
+#define DHTTYPE DHT11   // Define o tipo de sensor DHT
+
+DHT dht(DHTPIN, DHTTYPE); // Inicializa o sensor DHT
+
+// Define os pinos para os alertas de temperatura
+const int AlertaTempBaixa = 8;
+const int AlertaTempIdeal = 9;
+const int AlertaTempAlta = 13;
+// Define os pinos para os relés da lâmpada e da ventoinha
+const int Lampada = 6;
+const int Ventoinha = 7;
+
+// Pino do potenciômetro
+const int PotenciometroPin = A1;
+
+void setup() {
+    // Inicializa a comunicação serial
+    Serial.begin(9600);
+    
+    // Define os pinos de alerta de temperatura como saídas
+    pinMode(AlertaTempBaixa, OUTPUT);
+    pinMode(AlertaTempIdeal, OUTPUT);
+    pinMode(AlertaTempAlta, OUTPUT);
+    
+    // Define os pinos dos relés como saídas
+    pinMode(Lampada, OUTPUT);
+    pinMode(Ventoinha, OUTPUT);
+
+    // Inicializa o LCD com 16 colunas e 2 linhas
+    LCD.begin(16, 2);
+    // Imprime a mensagem inicial no LCD
+    LCD.print("Temp:");
+    // Muda o cursor para a primeira coluna e segunda linha do LCD
+    LCD.setCursor(0, 1);
+    // Imprime os cabeçalhos no LCD
+    LCD.print("S:");
+    LCD.setCursor(9, 1);
+    LCD.print("R:");
+  
+    // Inicializa o sensor DHT
+    dht.begin();
+}
+
+void loop() {
+    // Faz a leitura da temperatura e umidade do sensor DHT11
+    float Humidade = dht.readHumidity();
+    float TemperaturaC = dht.readTemperature();
+    
+    // Se houver falha na leitura
+    if (isnan(TemperaturaC) || isnan(Humidade)) {
+        Serial.println("Erro na leitura do sensor"); // Envia uma mensagem de erro para a serial
+        LCD.setCursor(0, 0);
+        LCD.print("Erro na leitura");
+        LCD.setCursor(0, 1);
+        LCD.print("do sensor   ");
+        delay(1000); // Espera um tempo
+        return; // Sai do loop
+    }
+
+    // Leitura do potenciômetro para ajustar a temperatura de referência
+    int PotValor = analogRead(PotenciometroPin);
+    // Mapeia o valor do potenciômetro (0 a 1023) para uma faixa de temperatura (15 a 35 graus Celsius)
+    float TempReferencia = map(PotValor, 0, 1023, 15, 35);
+
+    // Converte a temperatura em Graus Celsius para Fahrenheit
+    float TemperaturaF = (TemperaturaC * 9.0 / 5.0) + 32.0;
+
+    // Muda o cursor para a terceira coluna e segunda linha do LCD
+    LCD.setCursor(2, 1);
+    // Imprime a temperatura em Graus Celsius
+    LCD.print(TemperaturaC);
+    LCD.print("C ");
+    // Imprime a temperatura de referência em Graus Celsius
+    LCD.setCursor(11, 1);
+    LCD.print(TempReferencia);
+    LCD.print("C ");
+
+    // Controle da temperatura e alertas com base na temperatura de referência ajustada
+    if (TemperaturaC >= TempReferencia + 5) {
+        // Temperatura alta: Liga a ventoinha e alerta de alta temperatura
+        digitalWrite(Ventoinha, HIGH);
+        digitalWrite(AlertaTempBaixa, LOW);
+        digitalWrite(AlertaTempIdeal, LOW);
+        digitalWrite(AlertaTempAlta, HIGH);
+        digitalWrite(Lampada, LOW);
+    } else if (TemperaturaC >= TempReferencia - 1 && TemperaturaC < TempReferencia + 5) {
+        // Temperatura ideal: Desliga aquecimento e alerta de temperatura ideal
+        digitalWrite(Ventoinha, LOW);
+        digitalWrite(AlertaTempBaixa, LOW);
+        digitalWrite(AlertaTempIdeal, HIGH);
+        digitalWrite(AlertaTempAlta, LOW);
+        digitalWrite(Lampada, LOW);
+    } else if (TemperaturaC < TempReferencia - 1) {
+        // Temperatura baixa: Liga a lâmpada e alerta de baixa temperatura
+        digitalWrite(Ventoinha, LOW);
+        digitalWrite(AlertaTempBaixa, HIGH);
+        digitalWrite(AlertaTempIdeal, LOW);
+        digitalWrite(AlertaTempAlta, LOW);
+        digitalWrite(Lampada, HIGH);
+    } else {
+        // Temperatura intermediária: Desliga todos os alertas
+        digitalWrite(Ventoinha, LOW);
+        digitalWrite(AlertaTempBaixa, LOW);
+        digitalWrite(AlertaTempIdeal, LOW);
+        digitalWrite(AlertaTempAlta, LOW);
+        digitalWrite(Lampada, LOW);
+    }
+    
+    // Imprime a temperatura de referência no Serial Monitor
+    Serial.print("Temp. Referencia: ");
+    Serial.println(TempReferencia);
+    
+    // Aguarda 1 segundo
+    delay(1000);
+}
+
