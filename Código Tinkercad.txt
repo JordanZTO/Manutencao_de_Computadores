@@ -1,0 +1,90 @@
+// Biblioteca LCD
+#include <LiquidCrystal.h>
+
+// Inicializa a biblioteca LCD com os pinos correspondentes
+LiquidCrystal LCD(12, 11, 5, 4, 3, 2);
+
+// Define o pino analógico A0 como entrada do Sensor de Temperatura
+const int SensorTempPino = A0;
+// Define os pinos para os alertas de temperatura
+const int AlertaTempBaixa = 8;
+const int AlertaTempIdeal = 1;
+const int AlertaTempAlta = 13;
+// Define os pinos para os relés da lâmpada e da ventoinha
+const int Lampada = 6;
+const int Ventoinha = 7;
+// Define as faixas de temperatura em graus Celsius
+const float TempBaixa = 31;  // Ajustado para uma faixa mais realista
+const float TempIdealMin = 32;
+const float TempIdealMax = 35;
+const float TempAlta = 36;
+
+void setup() {
+    // Define os pinos de alerta de temperatura como saídas
+    pinMode(AlertaTempBaixa, OUTPUT);
+    pinMode(AlertaTempIdeal, OUTPUT);
+    pinMode(AlertaTempAlta, OUTPUT);
+    // Define os pinos dos relés como saídas
+    pinMode(Lampada, OUTPUT);
+    pinMode(Ventoinha, OUTPUT);
+    // Inicializa o LCD com 16 colunas e 2 linhas
+    LCD.begin(16, 2);
+    // Imprime a mensagem inicial no LCD
+    LCD.print("Temperatura:");
+    // Muda o cursor para a primeira coluna e segunda linha do LCD
+    LCD.setCursor(0, 1);
+    // Imprime a mensagem no LCD
+	LCD.print("      C        F");
+}
+
+void loop() {
+    // Faz a leitura da tensão no Sensor de Temperatura
+    int SensorTempTensao = analogRead(SensorTempPino);
+    // Converte a leitura do sensor para tensão
+    float Tensao = SensorTempTensao * (5.0 / 1024.0);
+    // Converte a tensão para temperatura em Graus Celsius
+    float TemperaturaC = (Tensao - 0.5) * 100.0;
+    // Converte a temperatura em Graus Celsius para Fahrenheit
+    float TemperaturaF = (TemperaturaC * 9.0 / 5.0) + 32.0;
+    // Muda o cursor para a primeira coluna e segunda linha do LCD
+    LCD.setCursor(0, 1);
+    // Imprime a temperatura em Graus Celsius
+    LCD.print(TemperaturaC);
+    // Muda o cursor para a décima coluna e segunda linha do LCD
+    LCD.setCursor(9, 1);
+    // Imprime a temperatura em Graus Fahrenheit
+    LCD.print(TemperaturaF);
+
+    // Controle da temperatura e alertas
+    if (TemperaturaC >= TempAlta) {
+        // Temperatura alta: Liga a ventoinha e alerta de alta temperatura
+        digitalWrite(Ventoinha, HIGH);
+        digitalWrite(AlertaTempBaixa, LOW);
+        digitalWrite(AlertaTempIdeal, LOW);
+        digitalWrite(AlertaTempAlta, HIGH);
+        digitalWrite(Lampada, LOW);
+    } else if (TemperaturaC >= TempIdealMin && TemperaturaC < TempIdealMax) {
+        // Temperatura ideal: Desliga aquecimento e alerta de temperatura ideal
+        digitalWrite(Ventoinha, LOW);
+        digitalWrite(AlertaTempBaixa, LOW);
+        digitalWrite(AlertaTempIdeal, HIGH);
+        digitalWrite(AlertaTempAlta, LOW);
+        digitalWrite(Lampada, HIGH);
+    } else if (TemperaturaC < TempBaixa) {
+        // Temperatura baixa: Liga a lâmpada e alerta de baixa temperatura
+        digitalWrite(Ventoinha, LOW);
+        digitalWrite(AlertaTempBaixa, HIGH);
+        digitalWrite(AlertaTempIdeal, LOW);
+        digitalWrite(AlertaTempAlta, LOW);
+        digitalWrite(Lampada, HIGH);
+    } else {
+        // Temperatura intermediária: Desliga todos os alertas
+        digitalWrite(Ventoinha, LOW);
+        digitalWrite(AlertaTempBaixa, LOW);
+        digitalWrite(AlertaTempIdeal, LOW);
+        digitalWrite(AlertaTempAlta, LOW);
+        digitalWrite(Lampada, LOW);
+    }
+    // Aguarda 1 segundo
+    delay(1000);
+}
